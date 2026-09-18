@@ -15,7 +15,7 @@ export default function VehiclesPageContent() {
   );
 
   return (
-    <section className=" w-full py-10 lg:py-16">
+    <section className=" w-full py-10 lg:py-16 mt-10">
       <Container>
         {/* Mobile page title — mirrors the Figma mobile mockup, which shows
             the active category as a heading (e.g. "SUVs"). Exact mobile

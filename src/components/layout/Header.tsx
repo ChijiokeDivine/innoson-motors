@@ -12,7 +12,7 @@ const NAV_LINKS = [
   { label: "Contact Us", href: "/contact", id: "contact" },
 ];
 
-const PHONE_LABEL = "Call : 081xxxxxxxxx or 081xxxxxxxxxxx";
+const PHONE_LABEL = "Call : 081xxxxxxxxx";
 
 // 1. Define the TypeScript interface for the component props
 interface HeaderProps {

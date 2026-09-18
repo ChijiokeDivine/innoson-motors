@@ -20,7 +20,8 @@ export default function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
         </h3>
         <div className="flex items-center gap-6">
           <Link
-            href={`/vehicles/${vehicle.id}`}
+            // href={`/vehicles/${vehicle.id}`}
+            href={`/vehicles/caris`}
             className="flex items-center gap-2 text-[16px] leading-[normal] text-[#1e1e1e]"
           >
             Discover more
