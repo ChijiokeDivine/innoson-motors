@@ -6,6 +6,7 @@ import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import Container from "@/components/layout/Container";
+import GetQuoteModal from "@/components/GetQuoteModal";
 
 const SPECS = [
   { value: "321mi", label: "Range (EPA est.)" },
@@ -39,6 +40,10 @@ const TESTIMONIALS = [
 export default function CarisDetailPage() {
   const [open, setOpen] = useState<string | null>("design");
   const [heroSlide, setHeroSlide] = useState(0);
+  const [quoteOpen, setQuoteOpen] = useState(false); // ← add
+
+  // helper so every Get Quote opens the same modal
+  const openQuote = () => setQuoteOpen(true);
 
   return (
     <div className="min-h-screen bg-white font-[family-name:var(--font-google-sans)] text-[#1e1e1e]">
@@ -47,7 +52,7 @@ export default function CarisDetailPage() {
       {/* Offset for fixed header */}
       <main className="pt-[72px] lg:pt-[80px]">
         {/* ========== HERO ========== */}
-        <section className="relative">
+        <section className="relative ">
           <div className="relative h-[383px] w-full overflow-hidden lg:h-[822px]">
             {/* Desktop hero */}
             <Image
@@ -68,7 +73,7 @@ export default function CarisDetailPage() {
             <div className="absolute inset-0 bg-black/40" />
 
             {/* Copy + CTA */}
-            <div className="absolute inset-0 flex flex-col items-center px-5 pt-8 text-center text-white lg:pt-10">
+            <div className="absolute inset-0 flex flex-col items-center px-5 pt-8 text-center text-white lg:pt-10 mt-10">
               <p className="text-[14px] font-bold tracking-wide lg:text-[17px]">
                 BOLD AND ELEGANT
               </p>
@@ -79,12 +84,13 @@ export default function CarisDetailPage() {
                 IVM Caris embodies the beauty you want to explore in a car and the
                 strength you need to sustain the experience.
               </p>
-              <Link
-                href="#quote"
+              <button
+                type="button"
+                onClick={openQuote}
                 className="mt-4 flex h-10 w-[138px] items-center justify-center rounded-[4px] bg-[#005eb8] text-[14px] font-bold text-white"
               >
                 Get Quote
-              </Link>
+              </button>
             </div>
 
             {/* Nav arrows */}
@@ -400,9 +406,9 @@ export default function CarisDetailPage() {
               consectetur massa in turpis commodo, id ultrices nisi tincidunt.
               Lorem ipsum dolor sit amet, consectetur adipiscing elit.
             </p>
-            <Link
-              id="quote"
-              href="/book-a-test-drive"
+            <button
+              type="button"
+              onClick={openQuote}
               className="mt-6 inline-flex items-center gap-2 text-[20px] font-bold text-[#005eb8] lg:text-[32px]"
             >
               Get Quote Now
@@ -413,12 +419,17 @@ export default function CarisDetailPage() {
                 height={24}
                 className="size-6 lg:size-8"
               />
-            </Link>
+            </button>
           </div>
         </Container>
       </main>
 
       <Footer />
+      <GetQuoteModal
+        open={quoteOpen}
+        onClose={() => setQuoteOpen(false)}
+        vehicleType="Innoson Caris"
+      />
     </div>
   );
 }

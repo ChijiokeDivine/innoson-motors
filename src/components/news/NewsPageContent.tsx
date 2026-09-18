@@ -21,7 +21,7 @@ export default function NewsPageContent() {
   const showFeatured = !query.trim() || featured.title.toLowerCase().includes(query.toLowerCase());
 
   return (
-    <section className="font-[family-name:var(--font-google-sans)] w-full py-10 lg:py-16">
+    <section className="font-[family-name:var(--font-google-sans)] w-full py-10 lg:py-16 mt-10">
       <Container>
         <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
           <div className="flex flex-col gap-2">

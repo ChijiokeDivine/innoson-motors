@@ -9,6 +9,10 @@ import { dirname, join } from "node:path";
 const ASSETS = {
   "images/hero-caris.png":
     "https://www.figma.com/api/mcp/asset/37c1f7d0-1cbb-4cea-8fcc-9b84c04ff6a8.png",
+  "images/quote-car.png":
+    "https://www.figma.com/api/mcp/asset/7ca0826e-2b6a-418f-b093-8506d90ff5ce.png",
+  "icons/icon-cancel.svg":
+    "https://www.figma.com/api/mcp/asset/56beaa34-294d-41b4-ab14-f798f080f6da.svg",
   "images/hero-caris-mobile.png":
     "https://www.figma.com/api/mcp/asset/87207fde-c8ec-4c16-9580-2156cd9fad01.png",
   "images/interior-hero.png":
