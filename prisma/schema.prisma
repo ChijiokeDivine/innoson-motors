@@ -1,0 +1,474 @@
+// ─────────────────────────────────────────────────────────────────────────
+// Innoson Motors — Prisma schema
+//
+// Maps onto what the frontend already expects (categories, models, blog,
+// contact/quote/newsletter leads) and adds the one flow that has no
+// backend yet: test-drive bookings. Kept intentionally extensible —
+// see the "Room to grow" notes at each model — since the brief is that
+// clients will keep asking for more once this ships.
+// ─────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Enums ───────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  EDITOR
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum MessageStatus {
+  NEW
+  READ
+  RESOLVED
+}
+
+enum QuoteStatus {
+  NEW
+  CONTACTED
+  CLOSED
+}
+
+enum TestDriveStatus {
+  NEW
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum NewsletterStatus {
+  SUBSCRIBED
+  UNSUBSCRIBED
+}
+
+enum SpecGroup {
+  DIMENSIONS
+  PERFORMANCE
+  GENERAL
+}
+
+enum SocialPlatform {
+  FACEBOOK
+  TWITTER
+  INSTAGRAM
+  YOUTUBE
+  LINKEDIN
+  TIKTOK
+}
+
+// ── Admin / auth ────────────────────────────────────────────────────────
+// Prisma doesn't do auth itself — pair this with your own session/JWT
+// handling (or a library like Lucia/NextAuth) and store the hash here.
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String?
+  role         Role      @default(EDITOR)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  categories Category[]
+  models     VehicleModel[]
+  blogPosts  BlogPost[]
+}
+
+// ── Shared media library ───────────────────────────────────────────────
+// One table for every uploaded asset (matches the Cloudinary-backed
+// approach already in the codebase: Postgres holds metadata, Cloudinary
+// holds bytes).
+
+model Media {
+  id                 String   @id @default(cuid())
+  alt                String
+  caption            String?
+  mimeType           String?
+  width              Int?
+  height             Int?
+  fileSize           Int?
+  cloudinaryUrl      String?
+  cloudinaryPublicId String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  categories          Category[]
+  modelsUsingAsHero   VehicleModel[]        @relation("ModelHeroImage")
+  modelsUsingAsBrochure VehicleModel[]      @relation("ModelBrochure")
+  vehicleImages       VehicleImage[]
+  vehicleColorOptions VehicleColorOption[]
+  vehicleHighlights   VehicleHighlight[]
+  authors             Author[]
+  blogPosts           BlogPost[]
+  aboutPages          AboutPage[]
+  aboutGalleryImages  AboutGalleryImage[]
+}
+
+// ── Vehicle catalogue ───────────────────────────────────────────────────
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  imageId     String?
+  image       Media?   @relation(fields: [imageId], references: [id])
+  order       Int      @default(0)
+  createdById String?
+  createdBy   AdminUser? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  models VehicleModel[]
+}
+
+model VehicleModel {
+  id         String        @id @default(cuid())
+  name       String
+  slug       String        @unique
+  categoryId String
+  category   Category      @relation(fields: [categoryId], references: [id])
+  tagline    String?
+  summary    String?
+  // Rich text stored as editor JSON (Lexical/Tiptap output). Swap to
+  // `String @db.Text` instead if you'd rather store Markdown/HTML.
+  description Json?
+  design      Json?
+  technology  Json?
+  heroImageId String?
+  heroImage   Media?  @relation("ModelHeroImage", fields: [heroImageId], references: [id])
+  brochureId  String?
+  brochure    Media?  @relation("ModelBrochure", fields: [brochureId], references: [id])
+  // Nullable on purpose: the current frontend needs to fall back to
+  // "Contact us" pricing when this is blank.
+  basePrice   Decimal? @db.Decimal(14, 2)
+  currency    String   @default("NGN")
+  status      ContentStatus @default(DRAFT)
+  featured    Boolean  @default(false)
+  order       Int      @default(0)
+  createdById String?
+  createdBy   AdminUser? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  specs             VehicleSpec[]
+  images            VehicleImage[]
+  colorOptions      VehicleColorOption[]
+  highlights        VehicleHighlight[]
+  quoteRequests     QuoteRequest[]
+  testDriveBookings TestDriveBooking[]
+
+  @@index([categoryId])
+  @@index([status])
+}
+
+// Key/value spec rows (Engine Capacity / 3.0 Turbocharged, etc.) —
+// structured instead of a single blob so a spec sheet UI or comparison
+// table is a query away, not a re-parse of prose.
+model VehicleSpec {
+  id      String       @id @default(cuid())
+  modelId String
+  model   VehicleModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  label   String
+  value   String
+  group   SpecGroup    @default(GENERAL)
+  order   Int          @default(0)
+
+  @@index([modelId])
+}
+
+// Gallery, as a join table (not a Media[] array) so ordering and
+// per-image captions survive a client asking to reorder or relabel later.
+model VehicleImage {
+  id      String       @id @default(cuid())
+  modelId String
+  model   VehicleModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  mediaId String
+  media   Media        @relation(fields: [mediaId], references: [id])
+  caption String?
+  order   Int          @default(0)
+
+  @@index([modelId])
+}
+
+// Room to grow: color/trim variants aren't on the site yet, but every
+// model page implies them ("Bold and Elegant" in three finishes, etc.).
+// This is here so adding them later is a form field, not a migration.
+model VehicleColorOption {
+  id      String       @id @default(cuid())
+  modelId String
+  model   VehicleModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  name    String
+  hexCode String?
+  imageId String?
+  image   Media?       @relation(fields: [imageId], references: [id])
+  order   Int          @default(0)
+
+  @@index([modelId])
+}
+
+// Room to grow: the current model-detail pages bury feature callouts
+// ("Improved Exhaust Tech", "Front and rear airbags"...) inside one long
+// paragraph. Structuring them lets a client add/reorder highlight cards
+// from the admin instead of editing prose.
+model VehicleHighlight {
+  id          String       @id @default(cuid())
+  modelId     String
+  model       VehicleModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  title       String
+  description String       @db.Text
+  iconId      String?
+  icon        Media?       @relation(fields: [iconId], references: [id])
+  order       Int          @default(0)
+
+  @@index([modelId])
+}
+
+// ── Blog ────────────────────────────────────────────────────────────────
+
+model Author {
+  id        String   @id @default(cuid())
+  name      String
+  avatarId  String?
+  avatar    Media?   @relation(fields: [avatarId], references: [id])
+  bio       String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  posts BlogPost[]
+}
+
+model BlogPost {
+  id              String        @id @default(cuid())
+  title           String
+  slug            String        @unique
+  excerpt         String?       @db.Text
+  content         Json
+  coverImageId    String?
+  coverImage      Media?        @relation(fields: [coverImageId], references: [id])
+  authorId        String?
+  author          Author?       @relation(fields: [authorId], references: [id])
+  publishedAt     DateTime?
+  // Kept editable rather than purely computed, same as the current setup —
+  // auto-calc on save, let an editor override.
+  readTimeMinutes Int?
+  status          ContentStatus @default(DRAFT)
+  createdById     String?
+  createdBy       AdminUser?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  tags BlogPostTag[]
+
+  @@index([status])
+  @@index([authorId])
+}
+
+// Real many-to-many rather than a string array, so a client can ask for
+// a "/blog/tag/ev" listing page down the line without a data migration.
+model Tag {
+  id   String @id @default(cuid())
+  name String
+  slug String @unique
+
+  posts BlogPostTag[]
+}
+
+model BlogPostTag {
+  postId String
+  post   BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tagId  String
+  tag    Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+}
+
+// ── Leads / form submissions ────────────────────────────────────────────
+
+model ContactMessage {
+  id        String        @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String?
+  message   String        @db.Text
+  status    MessageStatus @default(NEW)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model NewsletterSubscriber {
+  id        String           @id @default(cuid())
+  email     String           @unique
+  status    NewsletterStatus @default(SUBSCRIBED)
+  // Which page/section the signup came from — already in the current
+  // setup and worth keeping once there's more than one signup form.
+  source    String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
+
+model QuoteRequest {
+  id        String       @id @default(cuid())
+  name      String
+  phone     String
+  email     String
+  address   String
+  modelId   String
+  model     VehicleModel @relation(fields: [modelId], references: [id])
+  message   String?      @db.Text
+  status    QuoteStatus  @default(NEW)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([modelId])
+  @@index([status])
+}
+
+// This is the one flow the current build has UI for (book-a-test-drive)
+// but no backend behind — the form just console.logs on submit today.
+model TestDriveBooking {
+  id             String          @id @default(cuid())
+  name           String
+  phone          String
+  email          String
+  modelId        String
+  model          VehicleModel    @relation(fields: [modelId], references: [id])
+  dealershipId   String?
+  dealership     Dealership?     @relation(fields: [dealershipId], references: [id])
+  preferredDate  DateTime?
+  message        String?         @db.Text
+  marketingOptIn Boolean         @default(false)
+  status         TestDriveStatus @default(NEW)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([modelId])
+  @@index([status])
+}
+
+// Room to grow: not on the site today, but "book a test drive" almost
+// always leads to "at which showroom" — this lets that be a dropdown
+// later instead of a free-text field to clean up.
+model Dealership {
+  id        String   @id @default(cuid())
+  name      String
+  address   String
+  city      String?
+  state     String?
+  phone     String?
+  lat       Float?
+  lng       Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  testDriveBookings TestDriveBooking[]
+}
+
+// ── Singleton site content (About page, Contact page) ──────────────────
+// id is pinned to 1 by convention — seed exactly one row per model and
+// always upsert against id: 1 rather than creating new rows.
+
+model AboutPage {
+  id                   Int      @id @default(1)
+  heading              String   @default("About Innoson Vehicles")
+  intro                Json?
+  qualityPolicyHeading String   @default("Quality Policy")
+  qualityPolicy        Json?
+  signatoryTitle       String   @default("Chairman/Chief Executive Officer")
+  heroImageId          String?
+  heroImage            Media?   @relation(fields: [heroImageId], references: [id])
+  updatedAt            DateTime @updatedAt
+
+  stats   AboutStat[]
+  gallery AboutGalleryImage[]
+}
+
+model AboutStat {
+  id          String    @id @default(cuid())
+  aboutPageId Int
+  aboutPage   AboutPage @relation(fields: [aboutPageId], references: [id])
+  label       String
+  value       String
+  order       Int       @default(0)
+
+  @@index([aboutPageId])
+}
+
+model AboutGalleryImage {
+  id          String    @id @default(cuid())
+  aboutPageId Int
+  aboutPage   AboutPage @relation(fields: [aboutPageId], references: [id])
+  mediaId     String
+  media       Media     @relation(fields: [mediaId], references: [id])
+  order       Int       @default(0)
+
+  @@index([aboutPageId])
+}
+
+model ContactInfo {
+  id        Int      @id @default(1)
+  address   String?
+  mapLat    Float?
+  mapLng    Float?
+  updatedAt DateTime @updatedAt
+
+  phones      ContactPhone[]
+  emails      ContactEmail[]
+  socialLinks SocialLink[]
+}
+
+model ContactPhone {
+  id            String      @id @default(cuid())
+  contactInfoId Int
+  contactInfo   ContactInfo @relation(fields: [contactInfoId], references: [id])
+  label         String?
+  number        String
+  order         Int         @default(0)
+
+  @@index([contactInfoId])
+}
+
+model ContactEmail {
+  id            String      @id @default(cuid())
+  contactInfoId Int
+  contactInfo   ContactInfo @relation(fields: [contactInfoId], references: [id])
+  email         String
+  order         Int         @default(0)
+
+  @@index([contactInfoId])
+}
+
+model SocialLink {
+  id            String         @id @default(cuid())
+  contactInfoId Int
+  contactInfo   ContactInfo    @relation(fields: [contactInfoId], references: [id])
+  platform      SocialPlatform
+  url           String
+  order         Int            @default(0)
+
+  @@index([contactInfoId])
+}
+
+// Room to grow: a generic escape hatch for the small stuff clients ask
+// for constantly (finance-partner hotline text, a homepage banner
+// on/off switch, an announcement bar) that doesn't deserve its own
+// table and shouldn't require a migration every time it changes.
+model SiteSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
