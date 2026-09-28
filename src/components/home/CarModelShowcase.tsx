@@ -4,67 +4,70 @@ import { useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Container from "../layout/Container";
+import type { Vehicle } from "@/components/vehicles/vehicles-data";
 
 interface CarModel {
-  id: number;
+  id: string;
   name: string;
   watermark: string;
   image: string;
+  slug?: string;
 }
 
-const MODELS: CarModel[] = [
-  {
-    id: 1,
-    name: "INNOSON CARIS",
-    watermark: "IVM",
-    image: "/images/car-model-side.png",
-  },
-  {
-    id: 2,
-    name: "INNOSON CAPA",
-    watermark: "IVM",
-    image: "/images/car-model-side.png",
-  },
-  {
-    id: 3,
-    name: "INNOSON G80",
-    watermark: "IVM",
-    image: "/images/car-model-side.png",
-  },
+const FALLBACK: CarModel[] = [
+  { id: "fb-1", name: "INNOSON CARIS", watermark: "IVM", image: "/images/car-model-side.png", slug: "caris" },
+  { id: "fb-2", name: "INNOSON CAPA", watermark: "IVM", image: "/images/car-model-side.png" },
+  { id: "fb-3", name: "INNOSON G80", watermark: "IVM", image: "/images/car-model-side.png" },
 ];
 
-export default function CarModelShowcase() {
-  const [activeIndex, setActiveIndex] = useState(0);
+function watermarkFromName(name: string): string {
+  const t = name.trim().toUpperCase();
+  const tokens = t.split(/\s+/).filter(Boolean);
+  if (tokens[0] === "INNOSON") tokens.shift();
+  if (tokens.length === 0) return "IVM";
+  if (tokens.length === 1) {
+    const w = tokens[0];
+    return w.length > 3 ? w.slice(0, 3) : w;
+  }
+  return (tokens[0]?.[0] ?? "") + (tokens[1]?.[0] ?? "") + (tokens[2]?.[0] ?? "M");
+}
 
-  // Ref to track touch start position for touch gestures on mobile
+export default function CarModelShowcase({
+  initialVehicles,
+}: {
+  initialVehicles?: Vehicle[];
+}) {
+  const models: CarModel[] =
+    initialVehicles && initialVehicles.length > 0
+      ? initialVehicles.slice(0, 12).map((v) => ({
+          id: v.id,
+          name: v.name,
+          watermark: watermarkFromName(v.name) || "IVM",
+          image: v.image,
+          slug: "slug" in v ? String((v as { slug?: string }).slug) : undefined,
+        }))
+      : FALLBACK;
+
+  const [activeIndex, setActiveIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
 
-  const goPrev = () =>
-    setActiveIndex((i) => (i - 1 + MODELS.length) % MODELS.length);
-  const goNext = () =>
-    setActiveIndex((i) => (i + 1) % MODELS.length);
+  const count = models.length;
+  const goPrev = () => setActiveIndex((i) => (i - 1 + count) % count);
+  const goNext = () => setActiveIndex((i) => (i + 1) % count);
 
-  // Touch handlers for mobile swipe navigation
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
   };
-
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (touchStartX.current === null) return;
-
-    const touchEndX = e.changedTouches[0].clientX;
-    const diffX = touchStartX.current - touchEndX;
-
-    if (Math.abs(diffX) > 50) {
-      if (diffX > 0) {
-        goNext();
-      } else {
-        goPrev();
-      }
-    }
-
+    const diff = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) (diff > 0 ? goNext : goPrev)();
     touchStartX.current = null;
   };
+
+  const active = models[activeIndex];
+  const detailHref =
+    active?.slug ? `/vehicles/${active.slug}` : `/vehicles?ref=home-showcase`;
 
   return (
     <section className="font-[family-name:var(--font-google-sans)] w-full py-16 lg:py-[100px]">
@@ -99,13 +102,12 @@ export default function CarModelShowcase() {
           </Link>
         </div>
 
-        {/* Showcase Slider Container */}
         <div
           className="relative h-[360px] w-full overflow-hidden rounded-[4px] bg-[#e4e4e4] md:h-[520px] lg:h-[752px]"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
-          {MODELS.map((model, index) => {
+          {models.map((model, index) => {
             const isActive = activeIndex === index;
             return (
               <div
@@ -114,12 +116,9 @@ export default function CarModelShowcase() {
                   isActive ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
                 }`}
               >
-                {/* Watermark */}
                 <span className="absolute left-1/2 top-[36%] -translate-x-1/2 -translate-y-1/2 select-none whitespace-nowrap text-[110px] font-bold leading-none text-white opacity-40 md:text-[220px] lg:text-[375px]">
                   {model.watermark}
                 </span>
-
-                {/* Car Image */}
                 <div className="absolute left-1/2 top-[36%] w-[85%] max-w-[961px] -translate-x-1/2 -translate-y-1/2">
                   <Image
                     src={model.image}
@@ -130,8 +129,6 @@ export default function CarModelShowcase() {
                     className="h-auto w-full rounded-[10px] object-contain"
                   />
                 </div>
-
-                {/* Model Name */}
                 <p className="absolute bottom-[15%] left-1/2 -translate-x-1/2 whitespace-nowrap text-[22px] font-bold leading-none text-black md:text-[36px] lg:text-[48px]">
                   {model.name}
                 </p>
@@ -139,34 +136,28 @@ export default function CarModelShowcase() {
             );
           })}
 
-          {/* Navigation Controls */}
           <button
             type="button"
             aria-label="Previous model"
             onClick={goPrev}
             className="absolute left-3 top-1/2 z-20 flex size-10 -translate-y-1/2 items-center justify-center transition-transform hover:scale-110 lg:left-10 lg:size-16"
           >
-            <Image
-              src="/icons/icon-chevron.svg"
-              alt=""
-              width={24}
-              height={24}
-              className="size-full"
-            />
+            <Image src="/icons/icon-chevron.svg" alt="" width={24} height={24} className="size-full" />
           </button>
+          <Link
+            href={detailHref}
+            aria-label="View model details"
+            className="absolute bottom-[6%] left-1/2 z-20 -translate-x-1/2 rounded-[4px] bg-[#005eb8] px-4 py-2 text-[12px] font-bold text-white lg:text-[14px]"
+          >
+            Discover More
+          </Link>
           <button
             type="button"
             aria-label="Next model"
             onClick={goNext}
             className="absolute right-3 top-1/2 z-20 flex size-10 -translate-y-1/2 rotate-180 items-center justify-center transition-transform hover:scale-110 lg:right-10 lg:size-16"
           >
-            <Image
-              src="/icons/icon-chevron.svg"
-              alt=""
-              width={24}
-              height={24}
-              className="size-full"
-            />
+            <Image src="/icons/icon-chevron.svg" alt="" width={24} height={24} className="size-full" />
           </button>
         </div>
       </Container>

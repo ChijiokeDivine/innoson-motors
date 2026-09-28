@@ -1,25 +1,35 @@
 import type { Metadata } from "next";
 import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import FooterServer from "@/components/layout/FooterServer";
 import AboutHero from "@/components/about/AboutHero";
 import StatsRow from "@/components/about/StatsRow";
 import ImageBand from "@/components/about/ImageBand";
 import StoryTwoColumn from "@/components/about/StoryTwoColumn";
 import StoryWithImage from "@/components/about/StoryWithImage";
+import { getAboutPage } from "@/server/globals";
 
 export const metadata: Metadata = {
   title: "About Us | Innoson Vehicle Manufacturing",
+  description:
+    "Innoson Vehicle Manufacturing — Nigeria's first privately owned indigenous automobile manufacturer.",
 };
 
-export default function AboutPage() {
+export const revalidate = 60;
+
+export default async function AboutPage() {
+  let about;
+  try {
+    about = await getAboutPage();
+  } catch {
+    about = undefined;
+  }
   return (
     <>
       <Header active="about" />
       <main>
         <AboutHero />
-        <StatsRow />
+        <StatsRow stats={about?.stats} />
 
-        {/* Car rear photo: edge-to-edge on mobile, 50px gutters on desktop, no rounding */}
         <ImageBand
           src="/images/about-car-rear.png"
           alt="IVM Caris rear view"
@@ -29,7 +39,6 @@ export default function AboutPage() {
 
         <StoryTwoColumn />
 
-        {/* "Why do we exist?" banner: edge-to-edge at every breakpoint */}
         <ImageBand
           src="/images/image.webp"
           alt="IVM Caris driving through a forest road"
@@ -38,7 +47,6 @@ export default function AboutPage() {
           body={'To eradicate "tokunbo" (foreign used) automobiles from Africa by promoting MADE IS NIGERIA'}
         />
 
-        {/* Pickup photo: 20px gutters on mobile, edge-to-edge on desktop, rounded corners */}
         <ImageBand
           src="/images/image1.webp"
           alt="IVM pickup truck on a scenic road"
@@ -49,7 +57,6 @@ export default function AboutPage() {
 
         <StoryWithImage />
 
-        {/* "Driving video" banner: 20px gutters on mobile, edge-to-edge on desktop */}
         <ImageBand
           src="/images/b1e142294a01d68abac29ed61f48321618579322.jpg"
           alt="Red IVM hatchback in a showroom"
@@ -59,7 +66,7 @@ export default function AboutPage() {
           heading="Thoughtful details decorating the space"
         />
       </main>
-      <Footer />
+      <FooterServer />
     </>
   );
 }

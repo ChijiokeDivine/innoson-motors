@@ -1,4 +1,3 @@
-// src/payload.config.ts
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
@@ -12,12 +11,17 @@ import { Categories } from '@/collections/Categories'
 import { Models } from '@/collections/Models'
 import { Authors } from '@/collections/Authors'
 import { BlogPosts } from '@/collections/BlogPosts'
+import { Tags } from '@/collections/Tags'
+import { Dealerships } from '@/collections/Dealerships'
 import { QuoteRequests } from '@/collections/QuoteRequests'
 import { ContactMessages } from '@/collections/ContactMessages'
 import { Newsletter } from '@/collections/Newsletter'
+import { TestDriveBookings } from '@/collections/TestDriveBookings'
 import { AboutPage } from '@/globals/AboutPage'
 import { ContactInfo } from '@/globals/ContactInfo'
+import { SiteSettings } from '@/globals/SiteSettings'
 import { cloudinaryAdapter } from '@/lib/cloudinaryStorage'
+import AdminDashboard from '@/components/admin/Dashboard'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -27,8 +31,13 @@ export default buildConfig({
   secret: process.env.PAYLOAD_SECRET || '',
   admin: {
     user: Users.slug,
-    // Admin UI is served at /admin per the Next.js route group in
-    // src/app/(payload)/admin/[[...segments]]/page.tsx
+    meta: {
+      titleSuffix: ' | Innoson Motors Admin',
+      icons: [{ rel: 'icon', url: '/favicon.ico' }],
+    },
+    components: {
+      beforeDashboard: [AdminDashboard as never],
+    },
   },
   editor: lexicalEditor({}),
   db: postgresAdapter({
@@ -43,13 +52,19 @@ export default buildConfig({
     Models,
     Authors,
     BlogPosts,
+    Tags,
+    Dealerships,
     QuoteRequests,
     ContactMessages,
     Newsletter,
+    TestDriveBookings,
   ],
-  globals: [AboutPage, ContactInfo],
+  globals: [AboutPage, ContactInfo, SiteSettings],
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
+  },
+  graphQL: {
+    disable: true,
   },
   plugins: [
     cloudStoragePlugin({

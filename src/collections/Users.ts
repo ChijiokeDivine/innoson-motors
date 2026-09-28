@@ -1,23 +1,27 @@
-// src/collections/Users.ts
 import type { CollectionConfig } from 'payload'
+import { isAdmin, isAdminField, isEditorOrAdminField } from '@/access/isAdmin'
 
-/**
- * Admin/back-office users. This is the ONLY collection with `auth` enabled and
- * is what powers login at /admin. Public site visitors are never stored here.
- */
 export const Users: CollectionConfig = {
   slug: 'users',
-  auth: true,
+  auth: {
+    useAPIKey: false,
+    verify: false,
+    maxLoginAttempts: 10,
+    lockTime: 600_000,
+  },
   admin: {
     useAsTitle: 'email',
-    defaultColumns: ['email', 'name', 'role'],
+    defaultColumns: ['email', 'name', 'role', 'updatedAt'],
+    group: 'Users',
+    hidden: ({ user }) => !(user?.role === 'admin'),
   },
   access: {
-    // Only logged-in admins can list/read/manage other users.
-    read: ({ req: { user } }) => Boolean(user),
-    create: ({ req: { user } }) => Boolean(user),
-    update: ({ req: { user } }) => Boolean(user),
-    delete: ({ req: { user } }) => Boolean(user),
+    admin: ({ req: { user } }) => user?.role === 'admin',
+    read: isAdmin,
+    create: isAdmin,
+    update: isAdmin,
+    delete: isAdmin,
+    unlock: isAdmin,
   },
   fields: [
     {
@@ -33,6 +37,16 @@ export const Users: CollectionConfig = {
         { label: 'Admin', value: 'admin' },
         { label: 'Editor', value: 'editor' },
       ],
+      admin: {
+        position: 'sidebar',
+        description:
+          'Admin: full access. Editor: manage content + submissions, no user management, no delete on submissions.',
+      },
+      access: {
+        create: isAdminField,
+        update: isAdminField,
+        read: isEditorOrAdminField,
+      },
     },
   ],
 }

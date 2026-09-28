@@ -1,12 +1,23 @@
 import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import FooterServer from "@/components/layout/FooterServer";
 import Hero from "@/components/home/Hero";
 import BoldExperience from "@/components/home/BoldExperience";
 import EvCollectionBanner from "@/components/home/EvCollectionBanner";
 import CarModelShowcase from "@/components/home/CarModelShowcase";
 import PaymentBanner from "@/components/home/PaymentBanner";
+import { getFeaturedModels } from "@/server/models";
+import { modelsAsVehicleCards } from "@/lib/adapters";
 
-export default function HomePage() {
+export const revalidate = 60;
+
+export default async function HomePage() {
+  let featured;
+  try {
+    const models = await getFeaturedModels(6);
+    featured = modelsAsVehicleCards(models);
+  } catch {
+    featured = undefined;
+  }
   return (
     <>
       <Header />
@@ -14,10 +25,10 @@ export default function HomePage() {
         <Hero />
         <BoldExperience />
         <EvCollectionBanner />
-        <CarModelShowcase />
+        <CarModelShowcase initialVehicles={featured} />
         <PaymentBanner />
       </main>
-      <Footer />
+      <FooterServer />
     </>
   );
 }

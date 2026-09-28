@@ -4,30 +4,51 @@ import { useMemo, useState } from "react";
 import Container from "@/components/layout/Container";
 import VehicleFilter from "./VehicleFilter";
 import VehicleCard from "./VehicleCard";
-import { CATEGORY_LABEL, VEHICLES, type Category } from "./vehicles-data";
+import {
+  CATEGORY_LABEL,
+  VEHICLES,
+  CATEGORIES,
+  type Category,
+  type Vehicle,
+} from "./vehicles-data";
 
-export default function VehiclesPageContent() {
+type Props = {
+  initialVehicles?: Vehicle[];
+  initialCategories?: { slug: string; name: string; order: number }[];
+};
+
+export default function VehiclesPageContent({ initialVehicles, initialCategories }: Props) {
   const [active, setActive] = useState<Category>("ALL");
 
+  const vehicles = initialVehicles?.length ? initialVehicles : VEHICLES;
+  const categoriesFromServer: Category[] = initialCategories?.length
+    ? (["ALL", ...initialCategories
+        .sort((a, b) => a.order - b.order)
+        .map((c) => c.slug.toUpperCase())
+        .filter((s): s is Exclude<Category, "ALL"> => true)] as Category[])
+    : CATEGORIES;
+
   const filtered = useMemo(
-    () => (active === "ALL" ? VEHICLES : VEHICLES.filter((v) => v.category === active)),
-    [active]
+    () => (active === "ALL" ? vehicles : vehicles.filter((v) => v.category === active)),
+    [active, vehicles],
   );
 
+  const label =
+    active === "ALL"
+      ? CATEGORY_LABEL.ALL
+      : initialCategories?.find((c) => c.slug.toUpperCase() === active)?.name ??
+        CATEGORY_LABEL[active] ??
+        "Models";
+
   return (
-    <section className=" w-full py-10 lg:py-16 mt-10">
+    <section className="w-full py-10 lg:py-16 mt-10">
       <Container>
-        {/* Mobile page title — mirrors the Figma mobile mockup, which shows
-            the active category as a heading (e.g. "SUVs"). Exact mobile
-            font size wasn't available (Figma API rate limit), so this uses
-            the 24px/bold/uppercase pattern established for headings
-            elsewhere on mobile in this file. */}
         <h1 className="mb-6 text-[24px] font-black uppercase leading-[normal] text-[#1e1e1e] lg:hidden">
-          {CATEGORY_LABEL[active]}
+          {label}
         </h1>
 
         <div className="flex flex-col lg:flex-row lg:gap-[45px]">
-          <VehicleFilter active={active} onChange={setActive} />
+          <VehicleFilter active={active} onChange={setActive} extraCategories={categoriesFromServer.filter((c) => c !== "ALL" && !CATEGORIES.includes(c)) as Exclude<Category, "ALL">[]} />
 
           <div className="hidden w-px self-stretch bg-[#e4e4e4] lg:block" />
 

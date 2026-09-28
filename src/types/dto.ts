@@ -1,12 +1,3 @@
-// src/types/dto.ts
-
-/**
- * Frontend-facing Data Transfer Objects. These are the shapes a future
- * frontend should consume — deliberately flatter/simpler than Payload's
- * raw document shape (e.g. relationships pre-resolved, richText left as-is
- * for a renderer, media resolved to a plain { url, alt } object).
- */
-
 export interface MediaDTO {
   id: string
   url: string
@@ -19,12 +10,26 @@ export interface CategoryDTO {
   slug: string
   description?: string | null
   image?: MediaDTO | null
+  order?: number
 }
 
 export interface SpecRowDTO {
   label: string
   value: string
   group: 'dimensions' | 'performance' | 'general'
+  order?: number
+}
+
+export interface HighlightDTO {
+  title: string
+  description: string
+  icon?: MediaDTO | null
+}
+
+export interface ColorOptionDTO {
+  name: string
+  hexCode?: string | null
+  image?: MediaDTO | null
 }
 
 export interface ModelListItemDTO {
@@ -37,14 +42,18 @@ export interface ModelListItemDTO {
   heroImage?: MediaDTO | null
   featured: boolean
   basePrice?: number | null
+  currency?: string | null
+  updatedAt?: string | Date | null
 }
 
 export interface ModelDetailDTO extends ModelListItemDTO {
-  description?: unknown // Lexical richText JSON, render on the frontend
+  description?: unknown
   design?: unknown
   technology?: unknown
   specs: SpecRowDTO[]
-  images: { image: MediaDTO; caption?: string | null }[]
+  gallery: { image: MediaDTO; caption?: string | null }[]
+  highlights: HighlightDTO[]
+  colorOptions: ColorOptionDTO[]
   brochure?: MediaDTO | null
 }
 
@@ -55,6 +64,12 @@ export interface AuthorDTO {
   bio?: string | null
 }
 
+export interface TagDTO {
+  id: string
+  name: string
+  slug: string
+}
+
 export interface BlogListItemDTO {
   id: string
   title: string
@@ -62,13 +77,14 @@ export interface BlogListItemDTO {
   excerpt?: string | null
   coverImage?: MediaDTO | null
   author?: AuthorDTO | null
-  publishedDate: string
+  publishedAt: string
   readTimeMinutes: number
-  tags: string[]
+  tags: TagDTO[]
+  updatedAt?: string | Date | null
 }
 
 export interface BlogDetailDTO extends BlogListItemDTO {
-  content: unknown // Lexical richText JSON
+  content: unknown
 }
 
 export interface AboutPageDTO {
@@ -78,20 +94,35 @@ export interface AboutPageDTO {
   qualityPolicy?: unknown
   signatoryTitle?: string | null
   heroImage?: MediaDTO | null
-  stats: { label: string; value: string }[]
+  stats: { label: string; value: string; order?: number }[]
   gallery: MediaDTO[]
 }
 
 export interface ContactInfoDTO {
-  phones: { label?: string | null; number: string }[]
+  phones: { label?: string | null; number: string; order?: number }[]
   emails: string[]
   address?: string | null
   mapLat?: number | null
   mapLng?: number | null
-  socialLinks: { platform: string; url: string }[]
+  socialLinks: { platform: string; url: string; order?: number }[]
 }
 
-// ---- Write DTOs (request payloads for POST endpoints) ----
+export interface SiteSettingsDTO {
+  banner?: string | null
+  hotline?: string | null
+  financePartnerText?: string | null
+}
+
+export interface DealershipDTO {
+  id: string
+  name: string
+  address: string
+  city?: string | null
+  state?: string | null
+  phone?: string | null
+  lat?: number | null
+  lng?: number | null
+}
 
 export interface CreateQuoteRequestInput {
   name: string
@@ -115,7 +146,16 @@ export interface SubscribeNewsletterInput {
   source?: string
 }
 
-// ---- Generic API envelope used by every hand-written route in src/app/api ----
+export interface CreateTestDriveBookingInput {
+  name: string
+  phone: string
+  email: string
+  modelId: string
+  preferredDate?: string
+  dealershipId?: string
+  message?: string
+  marketingOptIn: boolean
+}
 
 export interface ApiSuccess<T> {
   success: true

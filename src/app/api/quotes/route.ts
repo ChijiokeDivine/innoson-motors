@@ -1,21 +1,35 @@
-// src/app/api/quotes/route.ts
 import type { NextRequest } from 'next/server'
 import { fail, ok, zodFieldErrors } from '@/lib/response'
 import { createQuoteRequestSchema } from '@/lib/validation'
-import { createQuoteRequest, ModelNotFoundError } from '@/services/quotes.service'
+import {
+  createQuoteRequest,
+  ModelNotFoundError,
+} from '@/services/quotes.service'
+import { isHoneypotClean } from '@/lib/honeypot'
+import { checkRateLimit, ipFromRequest } from '@/lib/rateLimit'
+import { notifyNewSubmission } from '@/server/notifications'
 
-/**
- * POST /api/quotes
- * Body: { name, phone, email, address, modelId, message? }
- * Public "Get a Quote" form submission from a model detail page.
- * Response: ApiSuccess<{ id: string; createdAt: string }>
- */
+const RL_CONFIG = { actionKey: 'quotes', max: 6, windowMs: 60 * 60_000 }
+
 export async function POST(req: NextRequest) {
+  const ip = ipFromRequest(req)
+  const rl = await checkRateLimit(ip, RL_CONFIG)
+  if (!rl.ok) {
+    return fail(
+      'Too many attempts. Please try again in a little while.',
+      429,
+    )
+  }
+
   let json: unknown
   try {
     json = await req.json()
   } catch {
     return fail('Request body must be valid JSON.', 400)
+  }
+
+  if (!isHoneypotClean(json as Record<string, unknown>)) {
+    return ok({ id: 'ignored', createdAt: new Date().toISOString() }, 200)
   }
 
   const parsed = createQuoteRequestSchema.safeParse(json)
@@ -25,6 +39,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await createQuoteRequest(parsed.data)
+    try {
+      await notifyNewSubmission('quote-request', result)
+    } catch {
+      /* best-effort */
+    }
     return ok(result, 201)
   } catch (err) {
     if (err instanceof ModelNotFoundError) {

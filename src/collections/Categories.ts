@@ -1,22 +1,26 @@
-// src/collections/Categories.ts
 import type { CollectionConfig } from 'payload'
-import { anyone, isAdmin } from '@/access/isAdmin'
+import { anyone, isAdmin, isEditorOrAdmin } from '@/access/isAdmin'
+import { autoSlugFrom } from '@/lib/slug'
+import { revalidateCategories } from '@/lib/revalidate'
 
-/**
- * Vehicle categories, mirroring the nav groups on innosonvehicles.com:
- * Cars, MPV, PickUp, SUVs, Buses. Each Model belongs to one Category.
- */
 export const Categories: CollectionConfig = {
   slug: 'categories',
   admin: {
     useAsTitle: 'name',
     defaultColumns: ['name', 'slug', 'order'],
+    group: 'Vehicles',
   },
+  defaultSort: 'order',
   access: {
     read: anyone,
-    create: isAdmin,
-    update: isAdmin,
+    create: isEditorOrAdmin,
+    update: isEditorOrAdmin,
     delete: isAdmin,
+  },
+  hooks: {
+    beforeValidate: [autoSlugFrom('name', 'slug')],
+    afterChange: [revalidateCategories],
+    afterDelete: [revalidateCategories],
   },
   fields: [
     {
@@ -29,7 +33,10 @@ export const Categories: CollectionConfig = {
       type: 'text',
       required: true,
       unique: true,
-      admin: { position: 'sidebar' },
+      admin: {
+        position: 'sidebar',
+        description: 'Auto-generated from name.',
+      },
     },
     {
       name: 'description',

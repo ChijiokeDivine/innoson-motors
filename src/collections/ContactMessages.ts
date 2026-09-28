@@ -1,26 +1,98 @@
-// src/collections/ContactMessages.ts
 import type { CollectionConfig } from 'payload'
-import { isAdmin } from '@/access/isAdmin'
+import {
+  isAdmin,
+  isEditorOrAdmin,
+  readOnlyAfterCreate,
+  statusWritableByEditor,
+  internalNotesWritableByEditor,
+} from '@/access/isAdmin'
+import { streamCollectionCSV } from '@/lib/csvExport'
+import { getPayloadClient } from '@/lib/getPayloadClient'
 
-/** General "Contact us" form submissions (separate from per-model quote requests). */
 export const ContactMessages: CollectionConfig = {
   slug: 'contact-messages',
   admin: {
     useAsTitle: 'name',
     defaultColumns: ['name', 'email', 'subject', 'status', 'createdAt'],
+    group: 'Submissions',
+    description:
+      "Submissions from the public 'Contact Us' form. Submitted data is read-only; only status and internal notes are editable.",
   },
+  defaultSort: '-createdAt',
   access: {
-    create: () => true,
-    read: isAdmin,
-    update: isAdmin,
+    read: isEditorOrAdmin,
+    create: isAdmin,
+    update: isEditorOrAdmin,
     delete: isAdmin,
   },
+  endpoints: [
+    {
+      path: '/export',
+      method: 'get',
+      handler: async (req) => {
+        const user = req.user
+        if (!user || (user.role !== 'admin' && user.role !== 'editor')) {
+          return Response.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+        const payload = await getPayloadClient()
+        const url = new URL(req.url ?? 'http://localhost/')
+        const whereParam = url.searchParams.get('where')
+        const where = whereParam ? (JSON.parse(whereParam) as Record<string, unknown>) : undefined
+        const sortParam = url.searchParams.get('sort')
+        const sort = (sortParam as string) ?? '-createdAt'
+        const result = await streamCollectionCSV(payload, req, {
+          collection: 'contact-messages',
+          sort,
+          where,
+          columns: [
+            { key: 'id', label: 'ID' },
+            { key: 'name', label: 'Name' },
+            { key: 'email', label: 'Email' },
+            { key: 'phone', label: 'Phone' },
+            { key: 'subject', label: 'Subject' },
+            { key: 'message', label: 'Message' },
+            { key: 'status', label: 'Status' },
+            { key: 'internalNotes', label: 'Internal Notes' },
+            { key: 'createdAt', label: 'Created At' },
+            { key: 'updatedAt', label: 'Updated At' },
+          ],
+        })
+        return new Response(result.stream, {
+          status: result.status,
+          headers: result.headers,
+        })
+      },
+    },
+  ],
   fields: [
-    { name: 'name', type: 'text', required: true },
-    { name: 'email', type: 'email', required: true },
-    { name: 'phone', type: 'text' },
-    { name: 'subject', type: 'text' },
-    { name: 'message', type: 'textarea', required: true },
+    {
+      name: 'name',
+      type: 'text',
+      required: true,
+      access: readOnlyAfterCreate,
+    },
+    {
+      name: 'email',
+      type: 'email',
+      required: true,
+      access: readOnlyAfterCreate,
+    },
+    {
+      name: 'phone',
+      type: 'text',
+      access: readOnlyAfterCreate,
+    },
+    {
+      name: 'subject',
+      type: 'text',
+      access: readOnlyAfterCreate,
+    },
+    {
+      name: 'message',
+      type: 'textarea',
+      required: true,
+      access: readOnlyAfterCreate,
+    },
     {
       name: 'status',
       type: 'select',
@@ -31,6 +103,16 @@ export const ContactMessages: CollectionConfig = {
         { label: 'Resolved', value: 'resolved' },
       ],
       admin: { position: 'sidebar' },
+      access: statusWritableByEditor,
+    },
+    {
+      name: 'internalNotes',
+      type: 'textarea',
+      admin: {
+        position: 'sidebar',
+        description: 'Staff-only notes. Never shown publicly.',
+      },
+      access: internalNotesWritableByEditor,
     },
   ],
 }

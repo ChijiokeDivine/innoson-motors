@@ -1,4 +1,5 @@
 // src/services/contact.service.ts
+import 'server-only'
 import { getPayloadClient } from '@/lib/getPayloadClient'
 import { toAboutPageDTO, toContactInfoDTO } from '@/lib/mappers'
 import type { AboutPageDTO, ContactInfoDTO, CreateContactMessageInput } from '@/types/dto'

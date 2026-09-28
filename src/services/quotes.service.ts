@@ -1,4 +1,5 @@
 // src/services/quotes.service.ts
+import 'server-only'
 import { getPayloadClient } from '@/lib/getPayloadClient'
 import { modelExistsAndPublished } from '@/services/models.service'
 import type { CreateQuoteRequestInput } from '@/types/dto'

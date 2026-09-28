@@ -5,12 +5,14 @@ import Image from "next/image";
 import Container from "@/components/layout/Container";
 import BlogCard from "./BlogCard";
 import { ARTICLES } from "./news-data";
+import type { Article } from "./news-data";
 
-export default function NewsPageContent() {
+export default function NewsPageContent({ initialArticles }: { initialArticles?: Article[] }) {
   const [query, setQuery] = useState("");
 
-  const featured = ARTICLES[0];
-  const rest = ARTICLES.slice(1);
+  const articles = initialArticles?.length ? initialArticles : ARTICLES;
+  const featured = articles[0];
+  const rest = articles.slice(1);
 
   const filteredRest = useMemo(() => {
     if (!query.trim()) return rest;
@@ -18,7 +20,7 @@ export default function NewsPageContent() {
     return rest.filter((article) => article.title.toLowerCase().includes(q));
   }, [query, rest]);
 
-  const showFeatured = !query.trim() || featured.title.toLowerCase().includes(query.toLowerCase());
+  const showFeatured = !query.trim() || (featured && featured.title.toLowerCase().includes(query.toLowerCase()));
 
   return (
     <section className="font-[family-name:var(--font-google-sans)] w-full py-10 lg:py-16 mt-10">
@@ -47,7 +49,7 @@ export default function NewsPageContent() {
           </div>
         </div>
 
-        {showFeatured && (
+        {featured && showFeatured && (
           <div className="mt-10 lg:mt-16">
             <BlogCard article={featured} featured />
           </div>

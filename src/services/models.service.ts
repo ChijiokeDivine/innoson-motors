@@ -1,11 +1,19 @@
-// src/services/models.service.ts
+import 'server-only'
 import { getPayloadClient } from '@/lib/getPayloadClient'
-import { toCategoryDTO, toModelDetailDTO, toModelListItemDTO } from '@/lib/mappers'
-import type { CategoryDTO, ModelDetailDTO, ModelListItemDTO } from '@/types/dto'
+import {
+  toCategoryDTO,
+  toModelDetailDTO,
+  toModelListItemDTO,
+} from '@/lib/mappers'
+import type {
+  CategoryDTO,
+  ModelDetailDTO,
+  ModelListItemDTO,
+} from '@/types/dto'
 import type { Where } from 'payload'
 
 export interface ListModelsParams {
-  category?: string // category slug
+  category?: string
   featured?: boolean
   limit?: number
   page?: number
@@ -21,7 +29,6 @@ export interface PaginatedResult<T> {
   hasPrevPage: boolean
 }
 
-/** Lists published categories, ordered for nav/menu display. */
 export async function listCategories(): Promise<CategoryDTO[]> {
   const payload = await getPayloadClient()
   const result = await payload.find({
@@ -33,7 +40,9 @@ export async function listCategories(): Promise<CategoryDTO[]> {
   return result.docs.map(toCategoryDTO)
 }
 
-export async function getCategoryBySlug(slug: string): Promise<CategoryDTO | null> {
+export async function getCategoryBySlug(
+  slug: string,
+): Promise<CategoryDTO | null> {
   const payload = await getPayloadClient()
   const result = await payload.find({
     collection: 'categories',
@@ -44,43 +53,38 @@ export async function getCategoryBySlug(slug: string): Promise<CategoryDTO | nul
   return result.docs[0] ? toCategoryDTO(result.docs[0]) : null
 }
 
-/** Lists published models, optionally filtered by category slug / featured flag. */
 export async function listModels(
   params: ListModelsParams = {},
 ): Promise<PaginatedResult<ModelListItemDTO>> {
   const payload = await getPayloadClient()
   const { category, featured, limit = 50, page = 1 } = params
 
-// inside listModels:
-  const where: Where = { status: { equals: 'published' } }
+  const where: Where = { _status: { equals: 'published' } }
 
   if (category) {
     const cat = await getCategoryBySlug(category)
     if (!cat) {
-      return { docs: [], totalDocs: 0, totalPages: 0, page, limit, hasNextPage: false, hasPrevPage: false }
+      return {
+        docs: [],
+        totalDocs: 0,
+        totalPages: 0,
+        page,
+        limit,
+        hasNextPage: false,
+        hasPrevPage: false,
+      }
     }
-    where.category = { equals: cat.id }
+    ;(where as Record<string, unknown>).category = { equals: cat.id }
   }
 
   if (typeof featured === 'boolean') {
-    where.featured = { equals: featured }
-  }
-  if (category) {
-    const cat = await getCategoryBySlug(category)
-    if (!cat) {
-      return { docs: [], totalDocs: 0, totalPages: 0, page, limit, hasNextPage: false, hasPrevPage: false }
-    }
-    where.category = { equals: cat.id }
-  }
-
-  if (typeof featured === 'boolean') {
-    where.featured = { equals: featured }
+    ;(where as Record<string, unknown>).featured = { equals: featured }
   }
 
   const result = await payload.find({
     collection: 'models',
     where,
-    sort: 'order',
+    sort: ['order', 'asc'],
     limit,
     page,
     depth: 1,
@@ -97,13 +101,17 @@ export async function listModels(
   }
 }
 
-/** Fetches one published model's full detail by slug, or null if not found. */
-export async function getModelBySlug(slug: string): Promise<ModelDetailDTO | null> {
+export async function getModelBySlug(
+  slug: string,
+): Promise<ModelDetailDTO | null> {
   const payload = await getPayloadClient()
   const result = await payload.find({
     collection: 'models',
     where: {
-      and: [{ slug: { equals: slug } }, { status: { equals: 'published' } }],
+      and: [
+        { slug: { equals: slug } },
+        { _status: { equals: 'published' } },
+      ],
     },
     limit: 1,
     depth: 2,
@@ -111,12 +119,17 @@ export async function getModelBySlug(slug: string): Promise<ModelDetailDTO | nul
   return result.docs[0] ? toModelDetailDTO(result.docs[0]) : null
 }
 
-/** Resolves a model id and confirms it exists + is published (used by the quotes service). */
-export async function modelExistsAndPublished(modelId: string): Promise<boolean> {
+export async function modelExistsAndPublished(
+  modelId: string,
+): Promise<boolean> {
   const payload = await getPayloadClient()
   try {
-    const doc = await payload.findByID({ collection: 'models', id: modelId, depth: 0 })
-    return Boolean(doc) && doc.status === 'published'
+    const doc = await payload.findByID({
+      collection: 'models',
+      id: modelId,
+      depth: 0,
+    })
+    return Boolean(doc) && doc._status === 'published'
   } catch {
     return false
   }

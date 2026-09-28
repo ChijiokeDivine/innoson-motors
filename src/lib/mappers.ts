@@ -1,128 +1,228 @@
-// src/lib/mappers.ts
 import type {
   AboutPageDTO,
   AuthorDTO,
   BlogDetailDTO,
   BlogListItemDTO,
   CategoryDTO,
+  ColorOptionDTO,
   ContactInfoDTO,
+  DealershipDTO,
+  HighlightDTO,
   MediaDTO,
   ModelDetailDTO,
   ModelListItemDTO,
+  SiteSettingsDTO,
+  SpecRowDTO,
+  TagDTO,
 } from '@/types/dto'
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// The `any` inputs below are raw Payload documents (generated types are
-// produced by `pnpm generate:types` once the DB is connected); mappers
-// narrow them into the frontend-facing DTOs declared in src/types/dto.ts.
-
-export function toMediaDTO(doc: any): MediaDTO | null {
+export function toMediaDTO(doc: unknown): MediaDTO | null {
   if (!doc || typeof doc !== 'object') return null
+  const d = doc as Record<string, unknown>
   return {
-    id: String(doc.id),
-    url: doc.cloudinaryURL || doc.url || '',
-    alt: doc.alt || '',
+    id: String(d.id),
+    url: (d.cloudinaryURL as string) || (d.url as string) || '',
+    alt: (d.alt as string) || '',
   }
 }
 
-export function toCategoryDTO(doc: any): CategoryDTO {
+export function toCategoryDTO(doc: unknown): CategoryDTO & { order?: number | null } {
+  const d = doc as Record<string, unknown>
   return {
-    id: String(doc.id),
-    name: doc.name,
-    slug: doc.slug,
-    description: doc.description ?? null,
-    image: toMediaDTO(doc.image),
+    id: String(d.id),
+    name: d.name as string,
+    slug: d.slug as string,
+    description: (d.description as string) ?? null,
+    image: toMediaDTO(d.image),
+    order: (d.order as number) ?? null,
   }
 }
 
-export function toModelListItemDTO(doc: any): ModelListItemDTO {
+export function toModelListItemDTO(doc: unknown): ModelListItemDTO {
+  const d = doc as Record<string, unknown>
+  const cat = d.category
+  const catObj = cat && typeof cat === 'object' ? (cat as Record<string, unknown>) : null
   return {
-    id: String(doc.id),
-    name: doc.name,
-    slug: doc.slug,
-    tagline: doc.tagline ?? null,
-    summary: doc.summary ?? null,
+    id: String(d.id),
+    name: d.name as string,
+    slug: d.slug as string,
+    tagline: (d.tagline as string) ?? null,
+    summary: (d.summary as string) ?? null,
     category: {
-      id: String(doc.category?.id ?? doc.category),
-      name: doc.category?.name ?? '',
-      slug: doc.category?.slug ?? '',
+      id: String(catObj?.id ?? cat ?? ''),
+      name: (catObj?.name as string) ?? '',
+      slug: (catObj?.slug as string) ?? '',
     },
-    heroImage: toMediaDTO(doc.heroImage),
-    featured: Boolean(doc.featured),
-    basePrice: doc.basePrice ?? null,
+    heroImage: toMediaDTO(d.heroImage),
+    featured: Boolean(d.featured),
+    basePrice: (d.basePrice as number) ?? null,
+    currency: (d.currency as string) ?? null,
+    updatedAt: (d.updatedAt as string | Date | undefined) ?? null,
   }
 }
 
-export function toModelDetailDTO(doc: any): ModelDetailDTO {
+export function toModelDetailDTO(doc: unknown): ModelDetailDTO {
+  const d = doc as Record<string, unknown>
+  const gallery = (d.gallery ?? d.images ?? []) as Record<string, unknown>[]
+  const specs = (d.specs ?? []) as Record<string, unknown>[]
+  const highlights = (d.highlights ?? []) as Record<string, unknown>[]
+  const colorOptions = (d.colorOptions ?? []) as Record<string, unknown>[]
+  const base = toModelListItemDTO(doc)
   return {
-    ...toModelListItemDTO(doc),
-    description: doc.description ?? null,
-    design: doc.design ?? null,
-    technology: doc.technology ?? null,
-    specs: (doc.specs ?? []).map((s: any) => ({
-      label: s.label,
-      value: s.value,
-      group: s.group ?? 'general',
+    ...base,
+    description: d.description ?? null,
+    design: d.design ?? null,
+    technology: d.technology ?? null,
+    specs: specs.map((s) => ({
+      label: s.label as string,
+      value: s.value as string,
+      group: (s.group as SpecRowDTO['group']) ?? 'general',
+      order: (s.order as number) ?? 0,
     })),
-    images: (doc.images ?? []).map((row: any) => ({
+    gallery: gallery.map((row) => ({
       image: toMediaDTO(row.image) as MediaDTO,
-      caption: row.caption ?? null,
+      caption: (row.caption as string) ?? null,
     })),
-    brochure: toMediaDTO(doc.brochure),
+    highlights: highlights.map((h) => ({
+      title: h.title as string,
+      description: h.description as string,
+      icon: toMediaDTO(h.icon),
+    })),
+    colorOptions: colorOptions.map((c) => ({
+      name: c.name as string,
+      hexCode: (c.hexCode as string) ?? null,
+      image: toMediaDTO(c.image),
+    })),
+    brochure: toMediaDTO(d.brochure),
   }
 }
 
-export function toAuthorDTO(doc: any): AuthorDTO | null {
-  if (!doc) return null
+export function toAuthorDTO(doc: unknown): AuthorDTO | null {
+  if (!doc || typeof doc !== 'object') return null
+  const d = doc as Record<string, unknown>
   return {
-    id: String(doc.id),
-    name: doc.name,
-    avatar: toMediaDTO(doc.avatar),
-    bio: doc.bio ?? null,
+    id: String(d.id),
+    name: d.name as string,
+    avatar: toMediaDTO(d.avatar),
+    bio: (d.bio as string) ?? null,
   }
 }
 
-export function toBlogListItemDTO(doc: any): BlogListItemDTO {
+export function toTagDTO(doc: unknown): TagDTO {
+  const d = doc as Record<string, unknown>
   return {
-    id: String(doc.id),
-    title: doc.title,
-    slug: doc.slug,
-    excerpt: doc.excerpt ?? null,
-    coverImage: toMediaDTO(doc.coverImage),
-    author: toAuthorDTO(doc.author),
-    publishedDate: doc.publishedDate,
-    readTimeMinutes: doc.readTimeMinutes ?? 1,
-    tags: (doc.tags ?? []).map((t: any) => t.tag),
+    id: String(d.id),
+    name: d.name as string,
+    slug: d.slug as string,
   }
 }
 
-export function toBlogDetailDTO(doc: any): BlogDetailDTO {
+function extractTags(tagsField: unknown): TagDTO[] {
+  if (!Array.isArray(tagsField)) return []
+  return tagsField
+    .map((entry: unknown) => {
+      if (entry && typeof entry === 'object') {
+        const e = entry as Record<string, unknown>
+        if (typeof e.name === 'string') return toTagDTO(entry)
+        if (typeof e.tag === 'string') {
+          return {
+            id: String(e.id ?? e.tag),
+            name: e.tag as string,
+            slug: e.tag as string,
+          } satisfies TagDTO
+        }
+      }
+      return null
+    })
+    .filter((t): t is TagDTO => Boolean(t))
+}
+
+export function toBlogListItemDTO(doc: unknown): BlogListItemDTO {
+  const d = doc as Record<string, unknown>
+  return {
+    id: String(d.id),
+    title: d.title as string,
+    slug: d.slug as string,
+    excerpt: (d.excerpt as string) ?? null,
+    coverImage: toMediaDTO(d.coverImage),
+    author: toAuthorDTO(d.author),
+    publishedAt: (d.publishedAt as string) || (d.publishedDate as string) || '',
+    readTimeMinutes: (d.readTimeMinutes as number) ?? 1,
+    tags: extractTags(d.tags),
+    updatedAt: (d.updatedAt as string | Date | undefined) ?? null,
+  }
+}
+
+export function toBlogDetailDTO(doc: unknown): BlogDetailDTO {
+  const d = doc as Record<string, unknown>
   return {
     ...toBlogListItemDTO(doc),
-    content: doc.content,
+    content: d.content,
   }
 }
 
-export function toAboutPageDTO(doc: any): AboutPageDTO {
+export function toAboutPageDTO(doc: unknown): AboutPageDTO {
+  const d = doc as Record<string, unknown>
+  const stats = (d.stats ?? []) as Record<string, unknown>[]
+  const gallery = (d.gallery ?? []) as Record<string, unknown>[]
   return {
-    heading: doc.heading,
-    intro: doc.intro ?? null,
-    qualityPolicyHeading: doc.qualityPolicyHeading,
-    qualityPolicy: doc.qualityPolicy ?? null,
-    signatoryTitle: doc.signatoryTitle ?? null,
-    heroImage: toMediaDTO(doc.heroImage),
-    stats: (doc.stats ?? []).map((s: any) => ({ label: s.label, value: s.value })),
-    gallery: (doc.gallery ?? []).map((g: any) => toMediaDTO(g.image) as MediaDTO),
+    heading: d.heading as string,
+    intro: d.intro ?? null,
+    qualityPolicyHeading: d.qualityPolicyHeading as string,
+    qualityPolicy: d.qualityPolicy ?? null,
+    signatoryTitle: (d.signatoryTitle as string) ?? null,
+    heroImage: toMediaDTO(d.heroImage),
+    stats: stats.map((s) => ({
+      label: s.label as string,
+      value: s.value as string,
+      order: (s.order as number) ?? 0,
+    })),
+    gallery: gallery
+      .map((g) => toMediaDTO(g.image))
+      .filter((m): m is MediaDTO => Boolean(m)),
   }
 }
 
-export function toContactInfoDTO(doc: any): ContactInfoDTO {
+export function toContactInfoDTO(doc: unknown): ContactInfoDTO {
+  const d = doc as Record<string, unknown>
+  const phones = (d.phones ?? []) as Record<string, unknown>[]
+  const emails = (d.emails ?? []) as Record<string, unknown>[]
+  const socials = (d.socialLinks ?? []) as Record<string, unknown>[]
   return {
-    phones: (doc.phones ?? []).map((p: any) => ({ label: p.label ?? null, number: p.number })),
-    emails: (doc.emails ?? []).map((e: any) => e.email),
-    address: doc.address ?? null,
-    mapLat: doc.mapLat ?? null,
-    mapLng: doc.mapLng ?? null,
-    socialLinks: (doc.socialLinks ?? []).map((s: any) => ({ platform: s.platform, url: s.url })),
+    phones: phones.map((p) => ({
+      label: (p.label as string) ?? null,
+      number: p.number as string,
+    })),
+    emails: emails.map((e) => e.email as string),
+    address: (d.address as string) ?? null,
+    mapLat: (d.mapLat as number) ?? null,
+    mapLng: (d.mapLng as number) ?? null,
+    socialLinks: socials.map((s) => ({
+      platform: s.platform as string,
+      url: s.url as string,
+    })),
+  }
+}
+
+export function toSiteSettingsDTO(doc: unknown): SiteSettingsDTO {
+  const d = doc as Record<string, unknown>
+  return {
+    banner: (d.banner as string) ?? null,
+    hotline: (d.hotline as string) ?? null,
+    financePartnerText: (d.financePartnerText as string) ?? null,
+  }
+}
+
+export function toDealershipDTO(doc: unknown): DealershipDTO {
+  const d = doc as Record<string, unknown>
+  return {
+    id: String(d.id),
+    name: d.name as string,
+    address: d.address as string,
+    city: (d.city as string) ?? null,
+    state: (d.state as string) ?? null,
+    phone: (d.phone as string) ?? null,
+    lat: (d.lat as number) ?? null,
+    lng: (d.lng as number) ?? null,
   }
 }

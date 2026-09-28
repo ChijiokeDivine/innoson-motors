@@ -1,16 +1,23 @@
-// src/collections/Authors.ts
 import type { CollectionConfig } from 'payload'
-import { anyone, isAdmin } from '@/access/isAdmin'
+import { anyone, isAdmin, isEditorOrAdmin } from '@/access/isAdmin'
+import { revalidateAuthors } from '@/lib/revalidate'
 
-/** Blog post writers, shown as "writer" on each blog post. */
 export const Authors: CollectionConfig = {
   slug: 'authors',
-  admin: { useAsTitle: 'name' },
+  admin: {
+    useAsTitle: 'name',
+    defaultColumns: ['name', 'updatedAt'],
+    group: 'Content',
+  },
   access: {
     read: anyone,
-    create: isAdmin,
-    update: isAdmin,
+    create: isEditorOrAdmin,
+    update: isEditorOrAdmin,
     delete: isAdmin,
+  },
+  hooks: {
+    afterChange: [revalidateAuthors],
+    afterDelete: [revalidateAuthors],
   },
   fields: [
     { name: 'name', type: 'text', required: true },

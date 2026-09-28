@@ -5,16 +5,19 @@ import { CATEGORIES, CATEGORY_LABEL, type Category } from "./vehicles-data";
 interface VehicleFilterProps {
   active: Category;
   onChange: (category: Category) => void;
+  extraCategories?: Exclude<Category, "ALL">[];
 }
 
-export default function VehicleFilter({ active, onChange }: VehicleFilterProps) {
+export default function VehicleFilter({ active, onChange, extraCategories = [] }: VehicleFilterProps) {
+  const mergedCategories = Array.from(new Set([...CATEGORIES, ...extraCategories])) as Category[];
+
   return (
     <>
       {/* Desktop: vertical sidebar list — matches Figma "Frame 58" exactly */}
       <aside className="hidden w-[182px] shrink-0 lg:block">
         <h2 className="text-[30px] font-bold leading-[20px] text-[#002a52]">MODELS</h2>
         <ul className="mt-10 flex flex-col">
-          {CATEGORIES.map((category) => (
+          {mergedCategories.map((category) => (
             <li key={category}>
               <button
                 type="button"
@@ -39,7 +42,7 @@ export default function VehicleFilter({ active, onChange }: VehicleFilterProps) 
         an untouched design spec.
       */}
       <div className="-mx-5 mb-8 flex gap-3 overflow-x-auto px-5 pb-1 lg:hidden">
-        {CATEGORIES.map((category) => (
+        {mergedCategories.map((category) => (
           <button
             key={category}
             type="button"
@@ -51,7 +54,7 @@ export default function VehicleFilter({ active, onChange }: VehicleFilterProps) 
                 : "border-[#e4e4e4] text-[#878383]"
             }`}
           >
-            {CATEGORY_LABEL[category]}
+            {CATEGORY_LABEL[category] ?? category}
           </button>
         ))}
       </div>

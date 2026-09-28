@@ -1,4 +1,5 @@
 // src/services/newsletter.service.ts
+import 'server-only'
 import { getPayloadClient } from '@/lib/getPayloadClient'
 import type { SubscribeNewsletterInput } from '@/types/dto'
 

@@ -6,7 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "generate:types": "payload generate:types",
+    "generate:importmap": "payload generate:importmap",
+    "db:push": "cross-env PAYLOAD_DANGEROUSLY_DISABLE_ADMIN=true payload db:push",
+    "migrate:create": "payload migrate:create",
+    "migrate": "cross-env PAYLOAD_DANGEROUSLY_DISABLE_ADMIN=true payload migrate",
+    "migrate:fresh": "cross-env PAYLOAD_DANGEROUSLY_DISABLE_ADMIN=true payload migrate:fresh",
+    "seed": "cross-env PAYLOAD_DANGEROUSLY_DISABLE_ADMIN=true payload run scripts/seed.ts"
   },
   "dependencies": {
     "@payloadcms/db-postgres": "^3.88.0",

@@ -1,8 +1,22 @@
 import Image from "next/image";
 import Link from "next/link";
-import type { Vehicle } from "./vehicles-data";
 
-export default function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
+export interface VehicleAdapter {
+  id: string;
+  name: string;
+  slug: string;
+  category: Exclude<
+    import("./vehicles-data").Category,
+    "ALL"
+  >;
+  image: string;
+  categorySlug: string;
+}
+
+export default function VehicleCard({ vehicle }: { vehicle: VehicleAdapter | import("./vehicles-data").Vehicle }) {
+  const isAdapter = "slug" in vehicle && "categorySlug" in vehicle;
+  const href = isAdapter ? `/vehicles/${vehicle.slug}` : `/vehicles/caris`;
+  const orderHref = isAdapter ? `/vehicles/${vehicle.slug}/order` : `/vehicles/${vehicle.id}/order`;
   return (
     <div className="overflow-hidden rounded-[12px] bg-white">
       <div className="relative h-[190px] w-full">
@@ -20,15 +34,14 @@ export default function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
         </h3>
         <div className="flex items-center gap-6">
           <Link
-            // href={`/vehicles/${vehicle.id}`}
-            href={`/vehicles/caris`}
+            href={href}
             className="flex items-center gap-2 text-[16px] leading-[normal] text-[#1e1e1e]"
           >
             Discover more
             <Image src="/icons/icon-arrow-right.svg" alt="" width={16} height={16} />
           </Link>
           <Link
-            href={`/vehicles/${vehicle.id}/order`}
+            href={orderHref}
             className="flex items-center gap-2 text-[16px] leading-[normal] text-[#1e1e1e]"
           >
             Order Now
