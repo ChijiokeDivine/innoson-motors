@@ -6,7 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "payload": "payload",
+    "generate:types": "payload generate:types",
+    "generate:importmap": "payload generate:importmap",
+    "migrate": "payload migrate",
+    "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
     "@payloadcms/db-postgres": "^3.88.0",
@@ -16,7 +22,7 @@
     "@prisma/adapter-pg": "^7.10.0",
     "cloudinary": "^2.11.0",
     "cross-env": "^10.1.0",
-    "graphql": "^17.0.2",
+    "graphql": "^16.11.0",
     "lucide-react": "^1.42.0",
     "next": "16.3.4",
     "payload": "^3.88.0",
@@ -39,6 +45,7 @@
     "eslint-config-next": "16.3.4",
     "prisma": "7.10.0",
     "tailwindcss": "^4",
+    "tsx": "^4.19.2",
     "typescript": "^5"
   }
 }
