@@ -22,6 +22,7 @@ import { ContactInfo } from '@/globals/ContactInfo'
 import { SiteSettings } from '@/globals/SiteSettings'
 import { cloudinaryAdapter } from '@/lib/cloudinaryStorage'
 import AdminDashboard from '@/components/admin/Dashboard'
+import sharp from 'sharp'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -39,11 +40,13 @@ export default buildConfig({
       beforeDashboard: [AdminDashboard as never],
     },
   },
+  sharp,
   editor: lexicalEditor({}),
   db: postgresAdapter({
     pool: {
-      connectionString: process.env.DATABASE_URI,
+      connectionString: process.env.DATABASE_URL,
     },
+    schemaName: 'payload', // ← add this
   }),
   collections: [
     Users,
