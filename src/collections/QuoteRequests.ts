@@ -7,7 +7,7 @@ import {
   internalNotesWritableByEditor,
 } from '@/access/isAdmin'
 import { streamCollectionCSV } from '@/lib/csvExport'
-import { getPayloadClient } from '@/lib/getPayloadClient'
+
 
 export const QuoteRequests: CollectionConfig = {
   slug: 'quote-requests',
@@ -34,7 +34,7 @@ export const QuoteRequests: CollectionConfig = {
         if (!user || (user.role !== 'admin' && user.role !== 'editor')) {
           return Response.json({ error: 'Unauthorized' }, { status: 401 })
         }
-        const payload = await getPayloadClient()
+        const payload = req.payload
         const url = new URL(req.url ?? 'http://localhost/')
         const whereParam = url.searchParams.get('where')
         const where = whereParam ? (JSON.parse(whereParam) as Record<string, unknown>) : undefined

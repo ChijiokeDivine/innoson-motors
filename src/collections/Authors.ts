@@ -21,6 +21,7 @@ export const Authors: CollectionConfig = {
   },
   fields: [
     { name: 'name', type: 'text', required: true },
+    { name: 'slug', type: 'text', required: true, unique: true, index: true },
     { name: 'avatar', type: 'upload', relationTo: 'media' },
     { name: 'bio', type: 'textarea' },
   ],

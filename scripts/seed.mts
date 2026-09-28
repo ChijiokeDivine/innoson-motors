@@ -4,7 +4,12 @@ import { getPayload } from 'payload'
 import config from '../src/payload.config'
 import { plainTextToLexical } from '../src/lib/lexical'
 
+type Payload = Awaited<ReturnType<typeof getPayload>>
+type Id = number
 type Sluggable = { name: string; slug?: string }
+
+// Casts the Lexical helper's output so it satisfies Payload's generated types
+const rich = (text: string) => plainTextToLexical(text) as never
 
 const slugify = (s: string): string =>
   s
@@ -17,11 +22,11 @@ const slugify = (s: string): string =>
     .replace(/^-+|-+$/g, '')
 
 const now = new Date().toISOString()
+
 function parseNigerianDate(s: string): string {
-  // "20th June 2026" -> ISO yyyy-mm-dd
-  const m = s.match(/(\d+)\s+([A-Za-z]+)\s+(\d{4})/)
-  if (!m) return new Date(s).toISOString()
-  const day = Number(m[1])
+  // "20th June 2026" -> ISO date
+  const m = s.match(/(\d+)(?:st|nd|rd|th)?\s+([A-Za-z]+)\s+(\d{4})/)
+  if (!m) throw new Error(`[seed] Unparseable date: "${s}"`)
   const monthMap: Record<string, number> = {
     January: 0,
     February: 1,
@@ -36,9 +41,9 @@ function parseNigerianDate(s: string): string {
     November: 10,
     December: 11,
   }
-  const month = monthMap[m[2]] ?? 0
-  const year = Number(m[3])
-  return new Date(Date.UTC(year, month, day, 12, 0, 0)).toISOString()
+  const month = monthMap[m[2]]
+  if (month === undefined) throw new Error(`[seed] Unknown month in date: "${s}"`)
+  return new Date(Date.UTC(Number(m[3]), month, Number(m[1]), 12, 0, 0)).toISOString()
 }
 
 const CATEGORIES = [
@@ -88,7 +93,7 @@ const ARTICLES = [
   {
     slug: 'made-in-nigeria-export-plans',
     readTime: 6,
-    title: 'Made in Nigeria: IVM\'s plans to export across West Africa',
+    title: "Made in Nigeria: IVM's plans to export across West Africa",
     author: 'Amara Nwosu',
     date: '9th June 2026',
     tags: ['Export', 'Company'],
@@ -104,7 +109,7 @@ const ARTICLES = [
   {
     slug: 'flexible-financing-access-bank',
     readTime: 7,
-    title: 'How IVM\'s partnership with Access Bank makes ownership easier',
+    title: "How IVM's partnership with Access Bank makes ownership easier",
     author: 'Nneka Okoli',
     date: '27th May 2026',
     tags: ['Financing'],
@@ -120,7 +125,7 @@ const ARTICLES = [
   {
     slug: 'local-parts-manufacturing-update',
     readTime: 9,
-    title: 'Zero imported parts: an update on IVM\'s local supply chain',
+    title: "Zero imported parts: an update on IVM's local supply chain",
     author: 'Amara Nwosu',
     date: '11th May 2026',
     tags: ['Supply Chain', 'Manufacturing'],
@@ -128,7 +133,7 @@ const ARTICLES = [
   {
     slug: 'ivm-motorcycle-legacy',
     readTime: 12,
-    title: 'From motorcycles to automobiles: revisiting IVM\'s founding story',
+    title: "From motorcycles to automobiles: revisiting IVM's founding story",
     author: 'Tunde Bakare',
     date: '3rd May 2026',
     tags: ['Company', 'Manufacturing'],
@@ -160,6 +165,7 @@ const SHOWROOMS = [
 ]
 
 const FACTORY_ADDRESS = 'No 2 Innoson Industrial Estate, Akwa-Uru, Uru Umudim, Nnewi, Anambra State'
+
 const PHONE_NUMBERS = [
   { label: 'Sales Hotline', number: '07049087160', order: 1 },
   { label: 'Customer Care', number: '08037222939', order: 2 },
@@ -175,7 +181,9 @@ const EMAIL_CONTACTS = [
   { email: 'Support@innosonmotors.com', order: 3 },
 ]
 
-const SOCIAL_LINKS = [
+type SocialPlatform = 'facebook' | 'twitter' | 'instagram' | 'youtube' | 'linkedin' | 'tiktok'
+
+const SOCIAL_LINKS: { platform: SocialPlatform; url: string; order: number }[] = [
   { platform: 'facebook', url: 'https://facebook.com/innosonmotors', order: 1 },
   { platform: 'twitter', url: 'https://twitter.com/innosonmotors', order: 2 },
   { platform: 'instagram', url: 'https://instagram.com/innosonmotors', order: 3 },
@@ -192,36 +200,36 @@ const STATS = [
 ]
 
 async function findOrCreate<T extends Sluggable>(
-  payload: Awaited<ReturnType<typeof getPayload>>,
+  payload: Payload,
   collection: string,
   doc: T & Record<string, unknown>,
   by: 'slug' | 'name' = 'slug',
-) {
+): Promise<{ id: Id }> {
   const keyValue =
     by === 'slug'
       ? doc.slug || slugify(doc.name)
       : (doc as Record<string, unknown>)[by]
   const existing = await payload.find({
     collection: collection as never,
-    where: ({ [by]: { equals: keyValue } }) as never,
+    where: { [by]: { equals: keyValue } } as never,
     limit: 1,
     depth: 0,
   })
   if (existing.docs.length > 0) {
-    const id = String(existing.docs[0].id)
-    return payload.update({
+    const id = (existing.docs[0] as { id: Id }).id
+    return (await payload.update({
       collection: collection as never,
       id,
       data: doc as never,
-    })
+    })) as unknown as { id: Id }
   }
-  return payload.create({
+  return (await payload.create({
     collection: collection as never,
     data: doc as never,
-  })
+  })) as unknown as { id: Id }
 }
 
-async function ensureAdminUser(payload: Awaited<ReturnType<typeof getPayload>>) {
+async function ensureAdminUser(payload: Payload) {
   const email = process.env.ADMIN_EMAIL?.trim()
   const password = process.env.ADMIN_PASSWORD
   if (!email || !password) {
@@ -265,7 +273,7 @@ async function run() {
   await ensureAdminUser(payload)
 
   console.log('[seed] Categories…')
-  const createdCategories = new Map<string, string>()
+  const createdCategories = new Map<string, Id>()
   for (const c of CATEGORIES) {
     const r = await findOrCreate(payload, 'categories', {
       name: c.name,
@@ -273,11 +281,11 @@ async function run() {
       order: c.order,
       description: `Browse our full range of ${c.name.toLowerCase()}.`,
     })
-    createdCategories.set(c.slug, String(r.id))
+    createdCategories.set(c.slug, r.id)
   }
 
   console.log('[seed] Authors…')
-  const authorsBy = new Map<string, string>()
+  const authorsBy = new Map<string, Id>()
   for (const a of AUTHORS) {
     const slug = slugify(a.name)
     const r = await findOrCreate(payload, 'authors', {
@@ -285,28 +293,23 @@ async function run() {
       slug,
       bio: a.bio,
     })
-    authorsBy.set(a.name, String(r.id))
+    authorsBy.set(a.name, r.id)
   }
 
   console.log('[seed] Tags…')
-  const tagsBy = new Map<string, string>()
+  const tagsBy = new Map<string, Id>()
   for (const t of TAGS) {
     const r = await findOrCreate(payload, 'tags', t)
-    tagsBy.set(t.name, String(r.id))
+    tagsBy.set(t.name, r.id)
   }
 
   console.log('[seed] Dealerships…')
   for (const d of SHOWROOMS) {
-    await findOrCreate(
-      payload,
-      'dealerships',
-      { ...d },
-      'name',
-    )
+    await findOrCreate(payload, 'dealerships', { ...d }, 'name')
   }
 
   console.log('[seed] Model: INNOSON Caris…')
-  const carisId = createdCategories.get('suvs')!
+  const carisCategoryId = createdCategories.get('suvs')!
   await (async () => {
     const SLUG = 'caris'
     const existing = await payload.find({
@@ -315,7 +318,9 @@ async function run() {
       limit: 1,
       depth: 0,
     })
-    const specs = [
+
+    type SpecGroup = 'performance' | 'general' | 'dimensions'
+    const specs: { label: string; value: string; group: SpecGroup; order: number }[] = [
       { label: 'Engine Capacity', value: '2.4L 4-Cylinder Petrol', group: 'performance', order: 1 },
       { label: 'Transmission', value: '6-Speed Automatic', group: 'performance', order: 2 },
       { label: 'Drive Type', value: '4x2 (FWD) — 4x4 optional', group: 'performance', order: 3 },
@@ -326,11 +331,11 @@ async function run() {
       { label: 'Height', value: '1,505 mm', group: 'dimensions', order: 8 },
       { label: 'Wheelbase', value: '2,710 mm', group: 'dimensions', order: 9 },
     ]
-    const gallery = [
-      { caption: 'Front three-quarter view', order: 1 },
-      { caption: 'Interior cabin', order: 2 },
-      { caption: 'Rear three-quarter view', order: 3 },
-    ]
+
+    // Gallery images are a required upload field, so seed without them.
+    // Upload real images to the media collection, then add them here.
+    const gallery: never[] = []
+
     const highlights = [
       { title: 'Improved Exhaust Tech', description: 'Optimized long-distance efficiency without sacrificing pull.', order: 1 },
       { title: 'Air-conditioned leather seats', description: 'Every seat benefits from independent vents and premium leather finish.', order: 2 },
@@ -343,29 +348,31 @@ async function run() {
       { name: 'Granite Grey', hexCode: '#4a4a4a', order: 3 },
       { name: 'Signature Red', hexCode: '#b71c1c', order: 4 },
     ]
+
     const data = {
       name: 'INNOSON Caris',
       slug: SLUG,
-      category: carisId,
+      category: carisCategoryId,
       tagline: 'Bold and elegant.',
       summary: '4x2 — 2.4L / Automatic / 5 Seats',
-      description: plainTextToLexical(
+      description: rich(
         'IVM Caris embodies the beauty you want to explore in a car and the strength you need to sustain the experience. With a captivating sleeker design, it was produced to give you the all-encompassing comfort, sophistication, and experience you crave in a modern car.',
       ),
-      design: plainTextToLexical(DESIGN_BODY),
-      technology: plainTextToLexical(
+      design: rich(DESIGN_BODY),
+      technology: rich(
         'Reverse camera with dynamic parking lines, automatic folding side mirrors, a 10-inch multimedia unit with Apple CarPlay and Android Auto compatibility, cruise control, hill-start assist, and tyre-pressure monitoring all come standard on the Caris line.',
       ),
       specs,
       gallery,
       highlights,
       colorOptions,
-      currency: 'NGN',
+      currency: 'NGN' as const,
       basePrice: 12500000,
       featured: true,
       order: 1,
       _status: 'published' as const,
     }
+
     if (existing.docs.length > 0) {
       await payload.update({
         collection: 'models',
@@ -386,13 +393,13 @@ async function run() {
       depth: 0,
     })
     const author = authorsBy.get(a.author)
-    const tagIds = a.tags.map((t) => tagsBy.get(t)).filter(Boolean) as string[]
+    const tagIds = a.tags.map((t) => tagsBy.get(t)).filter(Boolean) as Id[]
     const body = `# ${a.title}\n\n${LOREM_SHORT}\n\n${LOREM_SHORT}\n\n${LOREM_SHORT}\n\n${LOREM_SHORT}`
     const data = {
       title: a.title,
       slug: a.slug,
       excerpt: LOREM_SHORT,
-      content: plainTextToLexical(body),
+      content: rich(body),
       author,
       tags: tagIds,
       publishedAt: parseNigerianDate(a.date),
@@ -408,10 +415,10 @@ async function run() {
 
   console.log('[seed] Globals: About Page…')
   {
-    const aboutIntro = plainTextToLexical(
+    const aboutIntro = rich(
       'Innoson Vehicle Manufacturing Co. Ltd. (IVM) is the first privately-owned indigenous automobile manufacturing company in Nigeria, and the largest in West Africa. Since 2007, our Nnewi plant has rolled out thousands of cars, SUVs, MPVs, pickup trucks, buses and EVs — all designed, stamped, welded, painted and assembled right here in Nigeria.',
     )
-    const qualityPolicy = plainTextToLexical(
+    const qualityPolicy = rich(
       'It is the policy of Innoson Vehicle Manufacturing Co. Ltd. to design, produce and deliver motor vehicles and after-sales services that consistently meet the requirements of our customers. We commit to compliance with all relevant statutory and regulatory requirements, and to the continuous improvement of the quality management system through measurable quality objectives reviewed at every management meeting.',
     )
     await payload.updateGlobal({
@@ -457,6 +464,7 @@ async function run() {
   }
 
   console.log('[seed] Done at ' + now)
+  process.exit(0)
 }
 
 run().catch((err) => {
